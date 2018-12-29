@@ -9,4 +9,14 @@ when '2.3'
                                   node[:ruby][:minor_version]].join('.')
   normal[:ruby][:version] = [node[:ruby][:full_version],
                              node[:ruby][:patch_version]].join('.')
+when '2.4'
+  normal[:ruby][:major_version] = '2'
+  normal[:ruby][:minor_version] = '4'
+  normal[:ruby][:patch_version] = '4'
+  normal[:ruby][:pkgrelease]    = '1'
+
+  normal[:ruby][:full_version] = [node[:ruby][:major_version],
+                                  node[:ruby][:minor_version]].join('.')
+  normal[:ruby][:version] = [node[:ruby][:full_version],
+                             node[:ruby][:patch_version]].join('.')
 end
