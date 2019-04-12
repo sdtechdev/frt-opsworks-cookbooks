@@ -44,8 +44,10 @@ before_fork do |server, worker|
     I18n.t('foobar')
 
     # Warm models, load schema
-    (ActiveRecord::Base.connection.tables - %w[schema_migrations]).each do |table|
-      table.classify.constantize.first rescue nil
+    if ActiveRecord::Base.connection.active?
+      (ActiveRecord::Base.connection.tables - %w[schema_migrations]).each do |table|
+        table.classify.constantize.first rescue nil
+      end
     end
 
     # Warm the router
