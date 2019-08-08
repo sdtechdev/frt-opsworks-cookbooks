@@ -12,6 +12,8 @@ http {
   include       <%= node[:nginx][:dir] %>/mime.types;
   default_type  application/octet-stream;
 
+  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
   server_tokens off;
 
   access_log <%= node[:nginx][:log_dir] %>/access.log;
