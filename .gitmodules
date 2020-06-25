@@ -6,7 +6,7 @@
 	url = https://github.com/redterror/opsworks_custom_env
 [submodule "opsworks_sidekiq"]
 	path = opsworks_sidekiq
-	url = https://github.com/StemboltHQ/opsworks_sidekiq.git
+	url = https://github.com/sdtechdev/opsworks_sidekiq.git
 [submodule "datadog"]
 	path = datadog
 	url = https://github.com/DataDog/chef-datadog.git
