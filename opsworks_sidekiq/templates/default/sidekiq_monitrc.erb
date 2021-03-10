@@ -2,16 +2,14 @@
   <% (options[:process_count] || 1).times do |n| %>
   <% identifier = "#{@application}-#{worker}#{n+1}" %>
   <% conf_file = "#{@deploy[:deploy_to]}/shared/config/sidekiq_#{worker}#{n+1}.yml" %>
-  <% pid_file = "#{@deploy[:deploy_to]}/shared/pids/sidekiq_#{identifier}.pid" %>
-  <% if @syslog %>
-    <% ident = @syslog_ident ? @syslog_ident : "sidekiq-#{identifier}" %>
-    <% syslog = "2>&1 | logger -t #{ident}" %>
-  <% end %>
+  <% to_require = @opts[:require].present? ? " -r #{File.join(@deploy[:deploy_to], 'current', @opts[:require])}" : '' %>
+  <% timeout = (@opts[:timeout] || 8).to_i %>
+  <% ident = @opts[:syslog_ident] ? @opts[:syslog_ident] : "sidekiq-#{identifier}" %>
+  <% syslog = !!@opts[:syslog] ? "2>&1 | logger -t sidekiq-#{identifier}" : '' %>
 
-check process sidekiq_<%= identifier %>
-  with pidfile <%= pid_file %>
-  start program = "/bin/su - <%= @deploy[:user] %> -c 'cd <%= @deploy[:current_path] %> && RAILS_ENV=<%= @deploy[:rails_env] %> bundle exec sidekiq -C <%= conf_file %> -P  <%= pid_file %> <%= syslog %>'" with timeout 90 seconds
-  stop  program = "/bin/su - <%= @deploy[:user] %> -c 'kill -s TERM `cat <%= pid_file %>`'" with timeout 90 seconds
+check process sidekiq_<%= identifier %> matching "bundle exec sidekiq.*/sidekiq_<%= "#{worker}#{n+1}" %>.yml"
+  start program = "/bin/su -c 'cd <%= File.join(@deploy[:deploy_to], 'current') %> && <%= @environment.map { |k, v| "#{k}=\"#{v}\"" }.join(' ') %> bundle exec sidekiq -C <%= conf_file.to_s %><%= to_require.to_s %> <%= syslog.to_s %>' - <%= @deploy[:user] %>"
+  stop program = "/bin/su -c 'ps ax | grep "bundle exec sidekiq" | grep sidekiq_<%= n+1 %>.yml | grep -v grep | awk "{print \$1}" | xargs --no-run-if-empty pgrep -P | xargs --no-run-if-empty kill' - <%= @deploy[:user] %>" with timeout <%= timeout %> seconds
   group sidekiq_<%= @application %>_group
 
   <% end %>

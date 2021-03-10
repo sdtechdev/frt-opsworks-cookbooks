@@ -8,7 +8,9 @@ node[:deploy].each do |application, deploy|
   end
   default[:sidekiq][application.intern] = {}
   default[:sidekiq][application.intern][:restart_command] = "sudo monit restart -g sidekiq_#{application}_group"
+  default[:sidekiq][application.intern][:unmonit_command] = "sudo monit unmonitor -g sidekiq_#{application}_group"
   default[:sidekiq][application.intern][:syslog] = false
   default[:sidekiq][application.intern][:syslog_ident] = nil
+  default[:sidekiq][application.intern][:timeout] = 90
 end
 

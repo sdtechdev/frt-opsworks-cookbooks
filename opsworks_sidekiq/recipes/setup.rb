@@ -60,7 +60,7 @@ node[:deploy].each do |application, deploy|
 
   if node[:sidekiq][application]
 
-    workers = node[:sidekiq][application].to_hash.reject {|k,v| k.to_s =~ /restart_command|syslog/ }
+    workers = node[:sidekiq][application].to_hash.reject {|k,v| k.to_s =~ /restart_command|syslog|timeout|require|unmonit_command/ }
     config_directory = "#{deploy[:deploy_to]}/shared/config"
 
     workers.each do |worker, options|
@@ -89,12 +89,18 @@ node[:deploy].each do |application, deploy|
     template "#{monit_conf_dir}/sidekiq_#{application}.monitrc" do
       mode 0644
       source "sidekiq_monitrc.erb"
+      opts = {
+        :syslog_ident => node[:sidekiq][application][:syslog_ident],
+        :syslog => node[:sidekiq][application][:syslog],
+        :reqiure => node[:sidekiq][application][:require],
+        :timeout => node[:sidekiq][application][:timeout]
+      }
       variables({
         :deploy => deploy,
         :application => application,
         :workers => workers,
-        :syslog_ident => node[:sidekiq][application][:syslog_ident],
-        :syslog => node[:sidekiq][application][:syslog]
+        :opts => opts,
+        :environment => deploy[:environment].to_hash
       })
       notifies :reload, resources(:service => "monit"), :immediately
     end
