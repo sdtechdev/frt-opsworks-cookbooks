@@ -60,7 +60,7 @@ node[:deploy].each do |application, deploy|
 
   if node[:sidekiq][application]
 
-    workers = node[:sidekiq][application].to_hash.reject {|k,v| k.to_s =~ /restart_command|syslog|timeout|require|unmonit_command/ }
+    workers = node[:sidekiq][application].to_hash.reject {|k,v| k.to_s =~ /restart_command|syslog/ }
     config_directory = "#{deploy[:deploy_to]}/shared/config"
 
     workers.each do |worker, options|
@@ -77,12 +77,10 @@ node[:deploy].each do |application, deploy|
       # indentation. (queues: to :queues:)
       yaml = yaml.gsub(/^(\s*)([^:][^\s]*):/,'\1:\2:')
 
-      (options[:process_count] || 1).times do |n|
-        file "#{config_directory}/sidekiq_#{worker}#{n+1}.yml" do
-          mode 0644
-          action :create
-          content yaml
-        end
+      file "#{config_directory}/sidekiq_#{worker}.yml" do
+        mode 0644
+        action :create
+        content yaml
       end
     end
 
@@ -91,16 +89,13 @@ node[:deploy].each do |application, deploy|
       source "sidekiq_monitrc.erb"
       opts = {
         :syslog_ident => node[:sidekiq][application][:syslog_ident],
-        :syslog => node[:sidekiq][application][:syslog],
-        :reqiure => node[:sidekiq][application][:require],
-        :timeout => node[:sidekiq][application][:timeout]
+        :syslog => node[:sidekiq][application][:syslog]
       }
       variables({
         :deploy => deploy,
         :application => application,
         :workers => workers,
-        :opts => opts,
-        :environment => deploy[:environment].to_hash
+        :opts => opts
       })
       notifies :reload, resources(:service => "monit"), :immediately
     end

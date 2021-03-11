@@ -13,10 +13,6 @@ node[:deploy].each do |application, deploy|
     next
   end
 
-  execute "unmonit sidekiq workers #{application}" do
-    command node[:sidekiq][application][:unmonit_command]
-  end
-
   directory deploy[:deploy_to] do
     recursive true
     action :delete

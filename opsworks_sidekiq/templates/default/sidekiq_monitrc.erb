@@ -1,16 +1,20 @@
 <% @workers.each do |worker, options| %>
-  <% (options[:process_count] || 1).times do |n| %>
-  <% identifier = "#{@application}-#{worker}#{n+1}" %>
-  <% conf_file = "#{@deploy[:deploy_to]}/shared/config/sidekiq_#{worker}#{n+1}.yml" %>
-  <% to_require = @opts[:require].present? ? " -r #{File.join(@deploy[:deploy_to], 'current', @opts[:require])}" : '' %>
-  <% timeout = (@opts[:timeout] || 8).to_i %>
+  <% sidekiq_process_count = options[:process_count] || 1 %>
+  <% identifier = "#{@application}-#{worker}" %>
+  <% memory_limit_mb = options[:memory_limit_mb] || 500 %>
+  <% sidekiq_timeout = options[:sidekiq_timeout] || 10 %>
+  <% conf_file = "#{@deploy[:deploy_to]}/shared/config/sidekiq_#{worker}.yml" %>
+  <% log_file = options[:config][:logfile] %>
   <% ident = @opts[:syslog_ident] ? @opts[:syslog_ident] : "sidekiq-#{identifier}" %>
-  <% syslog = !!@opts[:syslog] ? "2>&1 | logger -t sidekiq-#{identifier}" : '' %>
-
-check process sidekiq_<%= identifier %> matching "bundle exec sidekiq.*/sidekiq_<%= "#{worker}#{n+1}" %>.yml"
-  start program = "/bin/su -c 'cd <%= File.join(@deploy[:deploy_to], 'current') %> && <%= @environment.map { |k, v| "#{k}=\"#{v}\"" }.join(' ') %> bundle exec sidekiq -C <%= conf_file.to_s %><%= to_require.to_s %> <%= syslog.to_s %>' - <%= @deploy[:user] %>"
-  stop program = "/bin/su -c 'ps ax | grep "bundle exec sidekiq" | grep sidekiq_<%= n+1 %>.yml | grep -v grep | awk "{print \$1}" | xargs --no-run-if-empty pgrep -P | xargs --no-run-if-empty kill' - <%= @deploy[:user] %>" with timeout <%= timeout %> seconds
-  group sidekiq_<%= @application %>_group
-
+  <% logger = '' %>
+  <% if log_file %>
+    <% logger = "2>&1 >> #{log_file}" %>
+  <% elsif !!@opts[:syslog] %>
+    <% logger = "2>&1 | logger -t #{ident}" %>
   <% end %>
+
+check process sidekiq_<%= identifier %> matching "bundle exec sidekiq.*/sidekiq_<%= worker %>.yml"
+  start program = "/bin/su - <%= @deploy[:user] %> -c 'cd <%= @deploy[:current_path] %> && RAILS_ENV=<%= @deploy[:rails_env] %> SIDEKIQ_PRELOAD= SIDEKIQ_MAXMEM_MB=<%= memory_limit_mb %> SIDEKIQ_COUNT=<%= sidekiq_process_count %> bundle exec sidekiqswarm -C <%= conf_file %> -t <%= sidekiq_timeout %> -r <%= @deploy[:current_path] %> <%= logger %>'" with timeout 90 seconds
+  stop program = "/bin/su - <%= @deploy[:user] %> -c 'pkill -f sidekiq_<%= worker %>.yml'" with timeout 90 seconds
+  group sidekiq_<%= @application %>_group
 <% end %>
