@@ -23,8 +23,6 @@ node[:deploy].each do |application, deploy|
       environment: deploy[:rails_env]
     )
 
-    notifies :run, "execute[restart Sidekiq app #{application}]"
-
     only_if do
       deploy[:database][:host].present? && File.directory?("#{deploy[:deploy_to]}/shared/config/")
     end
@@ -40,8 +38,6 @@ node[:deploy].each do |application, deploy|
       memcached: deploy[:memcached] || {},
       environment: deploy[:rails_env]
     )
-
-    notifies :run, "execute[restart Sidekiq app #{application}]"
 
     only_if do
       deploy[:memcached][:host].present? && File.directory?("#{deploy[:deploy_to]}/shared/config/")
