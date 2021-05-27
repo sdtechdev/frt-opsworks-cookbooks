@@ -1,20 +1,40 @@
 #!/usr/local/bin/ruby
+# unicorn restart script
+# copied from https://raw.githubusercontent.com/gethuman/chef/master/unicorn/templates/default/unicorn.service.erb
+# on May 27, 2021
 
 require 'etc'
 require 'digest/md5'
+require 'open3'
+require 'logger'
 
 ROOT_PATH="<%= @deploy[:deploy_to] %>"
 APP_NAME="<%= @application %>"
 PID_PATH="<%= @deploy[:deploy_to] %>/shared/pids/unicorn.pid"
+LOG_PATH="<%= @deploy[:deploy_to] %>/shared/log/unicorn.restart.log"
 
 def run_and_print_command(command)
-  puts command
-  system(command) || exit(1)
+  log command
+  result = system(command)
+  _stdout, stderr, status = Open3.capture3(command)
+
+  if status.success?
+    log "success"
+  else
+    log "failure, exitcode #{status.exitstatus}\n#{stderr}"
+    exit(1)
+  end
 end
 
 def run_and_ignore_exitcode_and_print_command(command)
-  puts command
-  system(command)
+  log command
+  _stdout, stderr, status = Open3.capture3(command)
+
+  if status.success?
+    log "success"
+  else
+    log "failure, exitcode #{status.exitstatus}\n#{stderr}"
+  end
 end
 
 def unicorn_running?
@@ -38,10 +58,10 @@ end
 
 def start_unicorn
   if File.exists?("#{ROOT_PATH}/current/Gemfile")
-    puts "OpsWorks: Gemfile detected - running Unicorn with bundle exec"
+    log "OpsWorks: Gemfile detected - running Unicorn with bundle exec"
     run_and_ignore_exitcode_and_print_command "cd #{ROOT_PATH}/current && /usr/local/bin/bundle exec unicorn_rails --env <%= @deploy[:rails_env] %> --daemonize -c #{ROOT_PATH}/shared/config/unicorn.conf"
   else
-    puts "OpsWorks: no Gemfile detected - running plain Unicorn"
+    log "OpsWorks: no Gemfile detected - running plain Unicorn"
     run_and_ignore_exitcode_and_print_command "cd #{ROOT_PATH}/current && unicorn_rails --env <%= @deploy[:rails_env] %> --daemonize -c #{ROOT_PATH}/shared/config/unicorn.conf"
   end
 end
@@ -52,7 +72,7 @@ def stop_unicorn
       `rm #{PID_PATH}`
     end
   else
-    puts "You can't stop unicorn, because it's not running"
+    log "You can't stop unicorn, because it's not running"
   end
 end
 
@@ -66,34 +86,45 @@ end
 
 def clean_restart
   if different_gemfile?
-    puts "Found a previous version with a different Gemfile: Doing a stop & start"
+    log "Found a previous version with a different Gemfile: Doing a stop & start"
     stop_unicorn if unicorn_running?
     start_unicorn
   else
-    puts "No previous version with a different Gemfile found. Assuming a quick restart without re-loading gems is save"
+    log "No previous version with a different Gemfile found. Assuming a quick restart without re-loading gems is save"
     restart_unicorn
   end
 end
 
 def status_unicorn
 	if pid = unicorn_running?
-		puts "Unicorn <%= @application %> running with PID #{pid}"
-		return true
+		log "Unicorn <%= @application %> running with PID #{pid}"
+		true
 	else
-		puts "Unicorn <%= @application %> not running"
-		return false
+		log "Unicorn <%= @application %> not running"
+		false
   end
 end
 
+def log(message)
+  puts message
+  logger.info message
+end
+
+def logger
+  return @logger if defined?(@logger)
+
+  @logger = Logger.new File.open(LOG_PATH, File::WRONLY | File::APPEND)
+end
+
 Process::Sys.setuid(uid = Etc.getpwnam("<%= @deploy[:user] %>").uid)
-puts "Set Unicorn process UID to #{uid}"
+log "Set Unicorn process UID to #{uid}"
 
 case ARGV[0]
 when "start"
-  puts "Starting Unicorn #{APP_NAME}"
+  log "Starting Unicorn #{APP_NAME}"
   start_unicorn
 when "stop"
-  puts "Stopping Unicorn #{APP_NAME}"
+  log "Stopping Unicorn #{APP_NAME}"
   stop_unicorn
 when "status"
   status_unicorn
@@ -102,7 +133,7 @@ when "restart"
 when "clean-restart"
   clean_restart
 else
-  puts "Usage: {start|stop|status|restart|clean-restart}"
+  log "Usage: {start|stop|status|restart|clean-restart}"
   exit 1
 end
 
