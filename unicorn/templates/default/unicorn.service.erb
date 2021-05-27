@@ -16,7 +16,6 @@ LOG_PATH="<%= @deploy[:deploy_to] %>/shared/log/unicorn.restart.log"
 
 def run_and_print_command(command)
   log command
-  result = system(command)
   _stdout, stderr, status = Open3.capture3(command)
 
   if status.success?
@@ -40,8 +39,10 @@ end
 
 def unicorn_running?
   if File.exists?(PID_PATH) && (pid = File.read(PID_PATH).chomp) && system("ps aux | grep #{pid} | grep -v grep > /dev/null")
+    log "Performed running check: unicorn is running with PID #{pid}"
     pid
   else
+    log "Performed running check: unicorn is not running"
     false
   end
 end
