@@ -79,11 +79,11 @@ def stop_unicorn
 end
 
 def restart_unicorn
-	if unicorn_running?
-		run_and_ignore_exitcode_and_print_command "kill -USR2 `cat #{PID_PATH}`"
-	else
-		start_unicorn
-	end
+  if unicorn_running?
+    run_and_ignore_exitcode_and_print_command "kill -USR2 `cat #{PID_PATH}`"
+  else
+    start_unicorn
+  end
 end
 
 def clean_restart
@@ -98,12 +98,12 @@ def clean_restart
 end
 
 def status_unicorn
-	if pid = unicorn_running?
-		log "Unicorn <%= @application %> running with PID #{pid}"
-		true
-	else
-		log "Unicorn <%= @application %> not running"
-		false
+  if pid = unicorn_running?
+    log "Unicorn <%= @application %> running with PID #{pid}"
+    true
+  else
+    log "Unicorn <%= @application %> not running"
+    false
   end
 end
 
